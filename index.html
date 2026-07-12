@@ -1,0 +1,2208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Workbench — 模拟演示</title>
+<style>
+  :root {
+    --bg: #0c0e14;
+    --bg-elevated: #10131a;
+    --bg-panel: #141720;
+    --bg-hover: #1a1e28;
+    --border: #1e2230;
+    --border-light: #282d3a;
+    --text: #e4e7ed;
+    --text-muted: #848a98;
+    --text-dim: #5e6472;
+    --accent: #6c8cff;
+    --accent-dim: #5570d4;
+    --success: #4ade80;
+    --warning: #f59e0b;
+    --danger: #f87171;
+    --info: #6c8cff;
+    --font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", Consolas, monospace;
+    --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow-xs: 0 0 0 1px rgba(255,255,255,.04);
+    --shadow-sm: 0 1px 2px rgba(0,0,0,.25), 0 0 0 1px rgba(255,255,255,.04);
+    --shadow: 0 2px 8px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.04);
+    --glow-accent: rgba(108,140,255,.3);
+    --glow-info: rgba(108,140,255,.3);
+    --glass-bg: rgba(20,23,32,0.7);
+    --glass-border: rgba(30,34,48,.4);
+    --glass-blur: 16px;
+    --scanline-color: rgba(255,255,255,.015);
+    --grid-color: rgba(108,140,255,.02);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  button {
+    cursor: pointer; border: none; outline: none;
+    font-family: inherit; font-size: 12.5px; font-weight: 500;
+    transition: all .2s ease;
+  }
+  input, textarea, select {
+    font-family: inherit; font-size: 13px;
+    background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 10px 12px; outline: none; width: 100%; resize: vertical;
+    transition: border-color .2s ease, box-shadow .2s ease;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(108,140,255,.12);
+  }
+  label { display: block; margin-bottom: 6px; color: var(--text-muted); font-size: 11.5px; font-weight: 500; letter-spacing: .3px; }
+
+  #toast-container {
+    position: fixed;
+    top: 16px; right: 16px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .toast {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-light);
+    border-left: 3px solid var(--accent);
+    padding: 10px 16px;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow);
+    animation: slideIn .25s ease;
+    min-width: 200px;
+    font-size: 12.5px;
+  }
+  .toast.success { border-left-color: var(--success); }
+  .toast.warning { border-left-color: var(--warning); }
+  .toast.danger { border-left-color: var(--danger); }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(30px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .topbar {
+    height: 52px;
+    background: var(--bg-elevated);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px; flex-shrink: 0;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 16px; }
+  .topbar-title {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .topbar-title .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--accent); display: inline-block;
+  }
+  .topbar-meta { display: flex; gap: 16px; color: var(--text-muted); font-size: 12px; }
+  .topbar-meta span { display: flex; align-items: center; gap: 6px; }
+  .topbar-meta .badge {
+    padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; letter-spacing: .4px;
+  }
+  .badge-ok { background: rgba(74,222,128,.12); color: var(--success); }
+  .badge-warn { background: rgba(245,158,11,.12); color: var(--warning); }
+  .badge-need { background: rgba(108,140,255,.12); color: var(--accent); }
+  .badge-danger { background: rgba(248,113,113,.12); color: var(--danger); }
+  .topbar-right { display: flex; gap: 8px; }
+  .btn {
+    padding: 7px 16px; border-radius: var(--radius-sm);
+    background: var(--bg-hover); color: var(--text);
+    border: 1px solid var(--border);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { background: var(--border-light); border-color: var(--border-light); }
+  .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+  .btn-primary:hover { background: var(--accent-dim); border-color: var(--accent-dim); }
+  .btn-success { background: var(--success); color: #0b0d13; border-color: var(--success); font-weight: 600; }
+  .btn-success:hover { filter: brightness(1.1); }
+  .btn-warning { background: var(--warning); color: #0b0d13; border-color: var(--warning); font-weight: 600; }
+  .btn-warning:hover { filter: brightness(1.1); }
+  .btn-sm { padding: 5px 12px; font-size: 11.5px; }
+  .btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--bg-hover); color: var(--text); border-color: var(--accent); }
+
+  .layout { display: flex; flex: 1; overflow: hidden; position: relative; z-index: 2; }
+  .topbar { position: relative; z-index: 2; }
+
+  .sidebar {
+    width: 210px;
+    background: var(--bg-elevated);
+    display: flex; flex-direction: column;
+    flex-shrink: 0;
+  }
+  .sidebar-nav { flex: 1; padding: 14px 10px; display: flex; flex-direction: column; gap: 3px; }
+  .nav-item {
+    display: flex; align-items: center;
+    padding: 9px 14px; border-radius: var(--radius-sm);
+    color: var(--text-muted); font-size: 12.5px; cursor: pointer;
+    border: 1px solid transparent;
+    transition: all .15s ease;
+    font-weight: 500;
+  }
+  .nav-item:hover { background: var(--bg-hover); color: var(--text); }
+  .nav-item.active { background: rgba(108,140,255,.1); color: var(--accent); border-color: rgba(108,140,255,.2); }
+
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .panel { flex: 1; overflow-y: auto; padding: 24px 28px; display: none; }
+  .panel.active { display: block; animation: fadeIn .2s ease; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .right-rail {
+    width: 280px;
+    background: var(--bg-elevated);
+    display: flex; flex-direction: column;
+    flex-shrink: 0;
+  }
+  .rail-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600; font-size: 11.5px; letter-spacing: .6px; color: var(--text-muted);
+    display: flex; align-items: center; justify-content: space-between;
+    text-transform: uppercase;
+  }
+  .rail-stats { padding: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-card {
+    background: var(--bg-panel);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-xs);
+    padding: 12px 14px;
+    text-align: center;
+  }
+  .stat-value { font-size: 20px; font-weight: 700; color: var(--accent); font-family: var(--font-mono); }
+  .stat-label { font-size: 10px; color: var(--text-dim); margin-top: 4px; letter-spacing: .5px; text-transform: uppercase; }
+  .event-log {
+    flex: 1; overflow-y: auto;
+    padding: 10px 14px;
+    font-family: var(--font-mono); font-size: 11px; line-height: 1.7;
+    color: var(--text-muted);
+  }
+  .event-item { margin-bottom: 6px; border-left: 2px solid transparent; padding-left: 8px; }
+  .event-item.info { border-left-color: var(--info); }
+  .event-item.success { border-left-color: var(--success); }
+  .event-item.warn { border-left-color: var(--warning); }
+  .event-item.error { border-left-color: var(--danger); }
+  .event-time { color: var(--text-dim); margin-right: 6px; }
+
+  .dashboard-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px; }
+  .status-card {
+    background: var(--bg-panel);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    padding: 18px;
+    display: flex; flex-direction: column; gap: 10px;
+    transition: box-shadow .2s ease, transform .2s ease;
+  }
+  .status-card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+  .status-card-header { display: flex; align-items: center; justify-content: space-between; }
+  .status-card-title { font-weight: 600; font-size: 13px; }
+  .status-badge {
+    font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 4px; letter-spacing: .3px;
+  }
+  .status-ready { background: rgba(74,222,128,.12); color: var(--success); }
+  .status-need { background: rgba(108,140,255,.12); color: var(--accent); }
+  .status-warn { background: rgba(245,158,11,.12); color: var(--warning); }
+  .status-done { background: rgba(74,222,128,.12); color: var(--success); }
+
+  .flow-track {
+    background: var(--bg-panel);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .flow-title { font-size: 11.5px; font-weight: 600; color: var(--text-muted); letter-spacing: .5px; margin-bottom: 14px; text-transform: uppercase; }
+  .flow-steps { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .flow-step {
+    padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 500;
+    background: var(--bg-hover); color: var(--text-muted); border: 1px solid var(--border);
+  }
+  .flow-step.done { background: rgba(74,222,128,.1); color: var(--success); border-color: rgba(74,222,128,.25); }
+  .flow-step.current { background: rgba(108,140,255,.12); color: var(--accent); border-color: rgba(108,140,255,.3); }
+  .flow-arrow { color: var(--text-dim); font-size: 11px; }
+
+  .panel-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; letter-spacing: -.2px; }
+  .panel-desc { color: var(--text-muted); font-size: 12.5px; margin-bottom: 24px; }
+  .panel-section {
+    background: var(--bg-panel);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    padding: 22px;
+    margin-bottom: 18px;
+  }
+  .section-title { font-size: 11.5px; font-weight: 600; letter-spacing: .5px; color: var(--text-muted); margin-bottom: 14px; text-transform: uppercase; }
+
+  .form-group { margin-bottom: 14px; }
+  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag {
+    padding: 5px 12px; border-radius: var(--radius-sm); font-size: 11px; font-weight: 500;
+    background: var(--bg-hover); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; user-select: none;
+    transition: all .15s ease;
+  }
+  .tag.active { background: rgba(108,140,255,.12); color: var(--accent); border-color: rgba(108,140,255,.25); }
+  .tag:hover { border-color: var(--border-light); }
+
+  .progress-track { height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; margin: 14px 0; }
+  .progress-fill { height: 100%; width: 0%; background: var(--accent); border-radius: 3px; transition: width .4s ease; }
+  .log-window {
+    background: #0a0d14;
+    border-radius: var(--radius-sm);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,.3);
+    padding: 14px;
+    font-family: var(--font-mono); font-size: 11.5px; line-height: 1.7;
+    color: var(--text-muted); max-height: 180px; overflow-y: auto;
+    margin-bottom: 14px;
+  }
+  .log-line { margin-bottom: 4px; }
+  .log-line.ok { color: var(--success); }
+  .log-line.warn { color: var(--warning); }
+  .log-line.info { color: var(--info); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  th { color: var(--text-muted); font-weight: 600; font-size: 11px; letter-spacing: .4px; }
+  tr:last-child td { border-bottom: none; }
+
+  .sg-layout { display: grid; grid-template-columns: 160px 1fr; gap: 16px; }
+  .file-tree {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px;
+    font-family: var(--font-mono); font-size: 12px;
+  }
+  .tree-item { padding: 5px 8px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 6px; color: var(--text-muted); }
+  .tree-item:hover { background: var(--bg-hover); color: var(--text); }
+  .tree-item.active { background: rgba(108,140,255,.12); color: var(--accent); }
+  .tree-item.risk { color: var(--danger); }
+  .tree-item.risk::before { content: "[!] "; }
+  .tree-item.excluded { text-decoration: line-through; opacity: .5; }
+  .tree-folder { font-weight: 600; }
+  .file-preview {
+    background: #0a0d14;
+    border-radius: var(--radius-sm);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,.3);
+    padding: 14px;
+    font-family: var(--font-mono); font-size: 12px; line-height: 1.7;
+    white-space: pre-wrap; word-break: break-word;
+    min-height: 200px;
+  }
+  .highlight-risk { background: rgba(248,113,113,.15); color: #fca5a5; padding: 1px 4px; border-radius: 3px; }
+  .highlight-masked { background: rgba(74,222,128,.15); color: #86efac; padding: 1px 4px; border-radius: 3px; }
+
+  .view-toggle { display: flex; gap: 4px; margin-bottom: 10px; }
+  .view-toggle button { flex: 1; }
+  .view-toggle button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .custom-redact { margin-top: 14px; }
+  .redact-result {
+    background: #050608;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+    font-family: var(--font-mono); font-size: 12px;
+    margin-top: 8px; min-height: 40px; color: var(--text-muted);
+  }
+
+  .file-list { display: flex; flex-direction: column; gap: 6px; }
+  .file-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; background: var(--bg); border-radius: var(--radius); border: 1px solid var(--border);
+  }
+  .file-row.included { border-left: 3px solid var(--success); }
+  .file-row.excluded { border-left: 3px solid var(--danger); opacity: .6; }
+  .file-name { font-family: var(--font-mono); font-size: 12px; }
+  .file-status { font-size: 11px; font-weight: 600; }
+  .status-included { color: var(--success); }
+  .status-excluded { color: var(--danger); }
+
+  .package-summary {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-top: 14px;
+  }
+  .summary-line { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .summary-line:last-child { border-bottom: none; }
+  .summary-label { color: var(--text-muted); }
+  .summary-value { font-family: var(--font-mono); font-size: 12px; }
+
+  .receipt-preview {
+    background: #050608;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    font-family: var(--font-mono); font-size: 12px; line-height: 1.8;
+    white-space: pre-wrap; max-height: 360px; overflow-y: auto;
+  }
+
+  .boundary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .boundary-card {
+    background: rgba(248,113,113,.04);
+    border: 1px solid rgba(248,113,113,.2);
+    border-radius: var(--radius);
+    padding: 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .boundary-card .icon { font-size: 14px; color: var(--danger); }
+  .boundary-card.verified { border-color: rgba(74,222,128,.4); background: rgba(74,222,128,.06); }
+  .boundary-card.verified .icon { color: var(--success); }
+
+  /* 命令预览器 */
+  .terminal {
+    background: #0a0d14;
+    border-radius: var(--radius-sm);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,.3);
+    padding: 14px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--text-muted);
+    min-height: 200px;
+    max-height: 300px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  #terminal-input:focus { border-color: var(--accent); box-shadow: 0 0 8px rgba(108,140,255,.3); }
+
+  /* Dashboard 快速操作面板 */
+  .quick-start {
+    background: var(--bg-panel);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    padding: 22px;
+    margin-top: 22px;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+  }
+  .quick-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px 14px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s ease;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+  }
+  .quick-card:hover { border-color: var(--accent); background: rgba(108,140,255,.06); transform: translateY(-1px); }
+  .quick-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .quick-card .q-icon { font-size: 20px; }
+  .quick-card .q-label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+  .quick-card .q-status { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 3px; }
+  .quick-card .q-status.todo { background: rgba(108,140,255,.1); color: var(--accent); }
+  .quick-card .q-status.done { background: rgba(74,222,128,.1); color: var(--success); }
+
+  .flex { display: flex; }
+  .flex-col { flex-direction: column; }
+  .gap-2 { gap: 8px; }
+  .gap-3 { gap: 12px; }
+  .mt-2 { margin-top: 8px; }
+  .mt-3 { margin-top: 12px; }
+  .mt-4 { margin-top: 16px; }
+  .mb-2 { margin-bottom: 8px; }
+  .text-muted { color: var(--text-muted); }
+  .text-dim { color: var(--text-dim); }
+  .text-success { color: var(--success); }
+  .text-warn { color: var(--warning); }
+  .text-danger { color: var(--danger); }
+  .font-mono { font-family: var(--font-mono); }
+  .simulated-tag {
+    display: inline-block; font-size: 10px; color: var(--text-dim);
+    border: 1px solid var(--border); padding: 2px 6px; border-radius: 4px; margin-top: 6px;
+  }
+
+  /* 暗色滚动条 */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(108,140,255,.4); }
+  * { scrollbar-width: thin; scrollbar-color: var(--border) var(--bg); }
+
+  /* 流程步骤脉冲动画 */
+  @keyframes pulse-step {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(108,140,255,.4); }
+    50% { box-shadow: 0 0 0 6px rgba(108,140,255,0); }
+  }
+  .flow-step.current {
+    animation: pulse-step 2s ease-in-out infinite;
+  }
+
+  /* Dashboard CTA 发光 */
+  @keyframes glow-cta {
+    0%, 100% { box-shadow: 0 0 8px rgba(108,140,255,.3); }
+    50% { box-shadow: 0 0 20px rgba(108,140,255,.6); }
+  }
+  #btn-start-check {
+    padding: 10px 24px; font-size: 13px; font-weight: 600;
+    animation: glow-cta 2.5s ease-in-out infinite;
+    transition: all .2s ease;
+  }
+  #btn-start-check:hover {
+    transform: scale(1.03);
+    box-shadow: 0 0 28px rgba(108,140,255,.75);
+  }
+
+  /* 统计卡数字闪动 */
+  @keyframes stat-pop {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.3); color: var(--accent); }
+    100% { transform: scale(1); }
+  }
+  .stat-pop { animation: stat-pop .4s ease; }
+
+  /* === Neon Border 呼吸发光 === */
+  .topbar-title .dot { box-shadow: 0 0 6px var(--glow-accent), 0 0 14px rgba(108,140,255,.3); }
+  .nav-item.active {
+    box-shadow: inset 3px 0 0 var(--accent);
+    border-left: 3px solid var(--accent);
+  }
+
+  /* === Glassmorphism 毛玻璃 === */
+  .panel-section, .status-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+  }
+  @supports not (backdrop-filter: blur(1px)) {
+    .panel-section, .status-card { background: var(--bg-panel); }
+  }
+
+  /* === CSS Spotlight 高光 === */
+  .status-card {
+    position: relative;
+    overflow: hidden;
+  }
+  .status-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle 160px at var(--mx,50%) var(--my,50%), rgba(108,140,255,.15), transparent 70%);
+    opacity: 0;
+    transition: opacity .3s ease;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .status-card:hover::after { opacity: 1; }
+  .status-card > * { position: relative; z-index: 1; }
+
+  /* === 扫描线 + CRT 条纹 === */
+  .log-window, .file-preview, .receipt-preview, .event-log {
+    position: relative;
+    overflow: hidden;
+  }
+  .log-window::after, .file-preview::after, .receipt-preview::after, .event-log::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 3px, var(--scanline-color) 3px, var(--scanline-color) 4px);
+    pointer-events: none;
+    z-index: 1;
+    opacity: .5;
+  }
+  .log-window > *, .file-preview > *, .receipt-preview > *, .event-log > * {
+    position: relative;
+    z-index: 2;
+  }
+
+  /* === 发光数字 === */
+  .stat-value {
+    color: var(--accent);
+    font-family: var(--font-mono);
+  }
+  @keyframes neon-flash {
+    0%, 100% { color: var(--accent); }
+    50% { color: var(--success); }
+  }
+  .stat-value.flash { animation: neon-flash .5s ease; }
+
+  /* === 粒子点击按钮 === */
+  .btn-primary, .btn-success {
+    position: relative;
+    overflow: hidden;
+  }
+  .particle {
+    position: absolute;
+    pointer-events: none;
+    z-index: 0;
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.8);
+    animation: particle-burst .5s ease-out forwards;
+  }
+  @keyframes particle-burst {
+    0% { opacity: 1; transform: translate(0,0) scale(1); }
+    100% { opacity: 0; transform: translate(var(--px),var(--py)) scale(0); }
+  }
+
+  /* === 项目健康指数 === */
+  .health-ring {
+    display: flex; align-items: center; gap: 24px;
+    background: var(--bg-panel);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    padding: 24px 28px;
+    margin-bottom: 24px;
+  }
+  .health-score {
+    font-family: var(--font-mono);
+    font-size: 52px; font-weight: 700;
+    color: var(--warning);
+    line-height: 1;
+    min-width: 100px;
+    transition: color .5s ease;
+  }
+  .health-score.safe { color: var(--success); }
+  .health-label { font-size: 11px; color: var(--text-dim); letter-spacing: .3px; }
+  .health-bar-track { flex: 1; height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+  .health-bar-fill { height: 100%; width: 0%; background: var(--accent); border-radius: 3px; transition: width .6s ease; }
+
+  /* === 脱敏过渡动画 === */
+  @keyframes redact-pulse {
+    0%, 100% { background: rgba(248,113,113,.2); }
+    50% { background: rgba(248,113,113,.5); transform: scale(1.02); }
+  }
+  @keyframes redact-flip {
+    0% { background: rgba(248,113,113,.3); color: #fca5a5; }
+    100% { background: rgba(74,222,128,.2); color: #86efac; }
+  }
+  .highlight-flip { animation: redact-flip .6s ease forwards; }
+
+  /* === 对比卡 === */
+  .compare-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px; }
+  .compare-card { border-radius: var(--radius); padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+  .compare-card.bad { background: rgba(248,113,113,.06); border: 1px solid rgba(248,113,113,.25); }
+  .compare-card.good { background: rgba(74,222,128,.06); border: 1px solid rgba(74,222,128,.25); }
+  .compare-card .c-title { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .compare-card .c-item { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+  .compare-card .c-item::before { content: "•"; font-weight: 700; }
+  .compare-card.bad .c-item::before { color: var(--danger); }
+  .compare-card.good .c-item::before { color: var(--success); }
+
+  /* === 交付前核对清单 === */
+  .preflight-checklist {
+    display: flex; flex-direction: column; gap: 6px;
+    margin-bottom: 16px; padding: 14px 16px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  .preflight-title {
+    font-size: 12px; font-weight: 600; color: var(--text-muted);
+    letter-spacing: .4px; margin-bottom: 6px;
+  }
+  .preflight-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px; border-radius: 4px;
+    font-size: 12px; color: var(--text-dim);
+    transition: all .2s ease;
+  }
+  .preflight-item.done { color: var(--success); }
+  .preflight-item.done .pf-check { background: var(--success); border-color: var(--success); }
+  .pf-check {
+    width: 16px; height: 16px; border-radius: 3px;
+    border: 2px solid var(--border-light); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; transition: all .2s ease;
+  }
+  .preflight-item.done .pf-check::after { content: "✓"; color: #000; font-weight: 700; }
+
+  /* === 魔法按钮 === */
+  .btn-magic {
+    background: linear-gradient(135deg, var(--accent), var(--success));
+    color: #fff; border: none;
+    padding: 12px 28px; font-size: 14px; font-weight: 700;
+    border-radius: var(--radius);
+    animation: glow-cta 2.5s ease-in-out infinite;
+  }
+  .btn-magic:hover {
+    transform: scale(1.04);
+    box-shadow: 0 0 32px rgba(74,222,128,.5);
+  }
+  .btn-magic:disabled { opacity: .4; animation: none; cursor: not-allowed; transform: none; }
+
+  /* === Canvas 粒子背景 + 极光 === */
+  #particle-canvas { position: fixed; top:0; left:0; width:100%; height:100%; z-index:0; pointer-events:none; }
+  #aurora-layer { position: fixed; top:0; left:0; width:100%; height:100%; z-index:1; pointer-events:none; opacity:.35; }
+
+  /* === 棱镜色移标题 === */
+  @keyframes prism-shift { 0%,100% { background-position:0% 50%; } 50% { background-position:100% 50%; } }
+  .prism-text {
+    background: linear-gradient(135deg, var(--accent), #8b7dff, var(--success), var(--accent));
+    background-size: 300% 300%;
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: prism-shift 6s ease infinite;
+  }
+
+  /* === 涟漪按钮 === */
+  .ripple { position:absolute; border-radius:50%; background:rgba(255,255,255,.12); transform:scale(0); animation:ripple-anim .6s linear; pointer-events:none; }
+  @keyframes ripple-anim { to { transform:scale(4); opacity:0; } }
+
+  /* === 终端红黄绿圆点 === */
+  .terminal-dots { display:flex; align-items:center; gap:6px; padding:8px 14px; background:rgba(12,18,36,.5); border-bottom:1px solid var(--border); border-radius:var(--radius-sm) var(--radius-sm) 0 0; }
+  .tdot { width:10px; height:10px; border-radius:50%; }
+  .tdot.r { background:#ff5f57; } .tdot.y { background:#febc2e; } .tdot.g { background:#28c840; }
+
+  /* === 修复建议面板 === */
+  .fix-card { background:rgba(108,140,255,.04); border:1px solid rgba(108,140,255,.15); border-radius:var(--radius-sm); padding:14px 16px; margin-bottom:8px; display:flex; gap:12px; align-items:flex-start; }
+  .fix-card .fix-icon { font-size:16px; flex-shrink:0; margin-top:1px; }
+  .fix-card .fix-body { flex:1; }
+  .fix-card .fix-title { font-size:12px; font-weight:600; color:var(--danger); margin-bottom:2px; }
+  .fix-card .fix-advice { font-size:11.5px; color:var(--text-muted); line-height:1.6; }
+  .fix-card .fix-advice code { background:var(--bg); padding:1px 5px; border-radius:3px; font-family:var(--font-mono); font-size:11px; color:var(--success); }
+
+  /* === 多维度评分 === */
+  .sub-scores { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:14px; }
+  .sub-score-item { text-align:center; cursor:pointer; padding:8px 6px; border-radius:var(--radius-sm); transition:all .15s ease; }
+  .sub-score-item:hover { background:rgba(108,140,255,.06); }
+  .sub-score-val { font-family:var(--font-mono); font-size:18px; font-weight:700; }
+  .sub-score-label { font-size:10px; color:var(--text-dim); margin-top:2px; letter-spacing:.3px; }
+  .sub-score-bar { height:3px; background:var(--bg); border-radius:2px; margin-top:6px; overflow:hidden; }
+  .sub-score-fill { height:100%; border-radius:2px; transition:width .6s ease; }
+
+</style>
+</head>
+<body>
+<div id="toast-container"></div>
+
+<!-- 顶部栏 -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-title"><span class="dot"></span>Agent Workbench</div>
+    <div class="topbar-meta">
+      <span>项目: <b id="top-project">demo-workbench</b></span>
+      <span>阶段: <b id="top-stage">原型</b></span>
+      <span>风险: <span class="badge badge-need" id="top-risk">待扫描</span></span>
+      <span>分享: <span class="badge badge-danger" id="top-share">未就绪</span></span>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <button class="btn btn-sm" onclick="resetDemo()">↺ 重置演示</button>
+    <button class="btn btn-sm" onclick="exportReceipt()">⬇ 导出收据</button>
+    <button class="btn btn-sm btn-primary" onclick="copySummary()">📋 复制摘要</button>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- 左侧导航 -->
+  <aside class="sidebar">
+    <nav class="sidebar-nav">
+      <div class="nav-item active" data-panel="dashboard" onclick="switchPanel('dashboard')">工作台</div>
+      <div class="nav-item" data-panel="capsule" onclick="switchPanel('capsule')">项目档案</div>
+      <div class="nav-item" data-panel="envscan" onclick="switchPanel('envscan')">环境扫描</div>
+      <div class="nav-item" data-panel="secret" onclick="switchPanel('secret')">密钥守卫</div>
+      <div class="nav-item" data-panel="terminal" onclick="switchPanel('terminal')">命令预览</div>
+      <div class="nav-item" data-panel="share" onclick="switchPanel('share')">分享打包</div>
+      <div class="nav-item" data-panel="receipt" onclick="switchPanel('receipt')">工作收据</div>
+      <div class="nav-item" data-panel="safety" onclick="switchPanel('safety')">安全边界</div>
+    </nav>
+  </aside>
+
+  <!-- 主区域 -->
+  <main class="main">
+    <!-- 工作台面板 -->
+    <section class="panel active" id="panel-dashboard">
+      <!-- 英雄区 -->
+      <div id="dashboard-hero" style="text-align:center; padding:40px 20px 20px;">
+        <div style="font-size:28px; margin-bottom:8px; font-weight:700;">AI 帮你写完了项目。<br>但它不会帮你检查能不能安全发出去。</div>
+        <div style="font-size:14px; color:var(--text-muted); margin-bottom:28px; line-height:1.8;">
+          发给同事、交作业、上传 Demo——在点"发送"之前，<br>
+          你的项目里有没有 <span style="color:var(--danger);">密钥</span>、<span style="color:var(--warning);">本地路径</span>、<span style="color:var(--danger);">缓存和日志</span>？
+        </div>
+        <div style="display:flex; justify-content:center; gap:14px; margin-bottom:32px; flex-wrap:wrap;">
+          <div style="background:rgba(248,113,113,.05); border:1px solid rgba(248,113,113,.15); border-radius:var(--radius); padding:14px 18px; max-width:240px; text-align:left;">
+            <div style="font-size:12px; font-weight:600; color:var(--danger); margin-bottom:6px;">经常被漏掉的东西</div>
+            <div style="font-size:11.5px; color:var(--text-dim); line-height:1.8;">
+              .env 里的密钥<br>
+              写死的本地路径<br>
+              node_modules / 缓存<br>
+              忘记关的 debug 日志
+            </div>
+          </div>
+          <div style="background:rgba(74,222,128,.05); border:1px solid rgba(74,222,128,.15); border-radius:var(--radius); padding:14px 18px; max-width:240px; text-align:left;">
+            <div style="font-size:12px; font-weight:600; color:var(--success); margin-bottom:6px;">一键处理</div>
+            <div style="font-size:11.5px; color:var(--text-dim); line-height:1.8;">
+              自动扫描 → 脱敏遮蔽<br>
+              标记风险文件 → 排除<br>
+              生成交付包 + 工作收据
+            </div>
+          </div>
+        </div>
+        <!-- 即时试用脱敏 -->
+        <div style="max-width:480px; margin:0 auto 24px; text-align:left;">
+          <div style="font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:6px; letter-spacing:.3px;">⚡ 不信？贴一段带密钥的文本试试</div>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="hero-redact-input" placeholder="比如: API_KEY=sk-abc123 路径 /home/myname/project" style="flex:1; font-size:12px;" onkeydown="if(event.key==='Enter')heroRedact()">
+            <button class="btn btn-primary btn-sm" onclick="heroRedact()" style="white-space:nowrap;">脱敏</button>
+          </div>
+          <div id="hero-redact-output" style="margin-top:8px; padding:8px 12px; background:#0a0d14; border-radius:var(--radius-sm); font-family:var(--font-mono); font-size:12px; color:var(--text-muted); min-height:28px; border:1px solid var(--border);">结果会显示在这里</div>
+        </div>
+
+        <button class="btn-magic" onclick="runFullPipeline()" id="btn-hero-magic" style="font-size:15px; padding:14px 40px;">🚀 体验完整流程</button>
+        <div style="margin-top:12px;">
+          <span class="simulated-tag">上方脱敏是真实功能 · 完整流程为模拟演示</span>
+        </div>
+      </div>
+
+      <!-- 完成认证：流程跑完后显示 -->
+      <div id="dashboard-cert" style="display:none; text-align:center; padding:30px 20px 10px;">
+        <div style="font-size:40px; margin-bottom:8px;">✅</div>
+        <div style="font-size:20px; font-weight:700; margin-bottom:4px;">可以发了</div>
+        <div style="font-size:13px; color:var(--text-muted); margin-bottom:24px; line-height:1.8;">
+          密钥已脱敏 · 路径已清理 · 多余文件已排除<br>
+          一份工作收据会跟着项目一起走，收件人知道里面有什么
+        </div>
+        <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="downloadReceipt()">⬇ 下载工作收据</button>
+          <button class="btn btn-sm" onclick="copyReceipt()">📋 复制收据</button>
+          <button class="btn btn-sm" onclick="resetDemo()">↺ 重新演示</button>
+        </div>
+      </div>
+
+      <!-- 工作区：开始操作后显示（初始隐藏） -->
+      <div id="dashboard-workspace" style="display:none;">
+        <div class="health-ring">
+          <div class="health-score" id="health-score">0%</div>
+          <div>
+            <div style="font-size:14px;font-weight:600;">交付准备度</div>
+            <div class="health-label">完成检查项以提高评分</div>
+            <div class="health-bar-track" style="margin-top:10px;"><div class="health-bar-fill" id="health-bar"></div></div>
+            <div class="sub-scores" style="margin-top:14px;">
+              <div class="sub-score-item" onclick="switchPanel('envscan')" title="点击跳转到环境扫描">
+                <div class="sub-score-val" id="sub-env" style="color:var(--text-dim);">—</div>
+                <div class="sub-score-label">环境</div>
+                <div class="sub-score-bar"><div class="sub-score-fill" id="sub-env-bar" style="width:0%;background:var(--accent);"></div></div>
+              </div>
+              <div class="sub-score-item" onclick="switchPanel('secret')" title="点击跳转到密钥守卫">
+                <div class="sub-score-val" id="sub-secret" style="color:var(--text-dim);">—</div>
+                <div class="sub-score-label">密钥</div>
+                <div class="sub-score-bar"><div class="sub-score-fill" id="sub-secret-bar" style="width:0%;background:var(--success);"></div></div>
+              </div>
+              <div class="sub-score-item" onclick="switchPanel('share')" title="点击跳转到分享打包">
+                <div class="sub-score-val" id="sub-share" style="color:var(--text-dim);">—</div>
+                <div class="sub-score-label">交付</div>
+                <div class="sub-score-bar"><div class="sub-score-fill" id="sub-share-bar" style="width:0%;background:var(--warning);"></div></div>
+              </div>
+              <div class="sub-score-item" title="模拟数据">
+                <div class="sub-score-val" id="sub-deps" style="color:var(--success);">100%</div>
+                <div class="sub-score-label">依赖</div>
+                <div class="sub-score-bar"><div class="sub-score-fill" id="sub-deps-bar" style="width:100%;background:var(--success);"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="status-card">
+            <div class="status-card-header">
+              <div class="status-card-title">项目上下文</div>
+              <div class="status-badge status-need" id="dash-context">待扫描</div>
+            </div>
+            <div class="text-muted" style="font-size:12px;">项目档案与目标定义</div>
+          </div>
+          <div class="status-card">
+            <div class="status-card-header">
+              <div class="status-card-title">开发环境</div>
+              <div class="status-badge status-need" id="dash-env">待扫描</div>
+            </div>
+            <div class="text-muted" style="font-size:12px;">开发环境诊断状态</div>
+          </div>
+          <div class="status-card">
+            <div class="status-card-header">
+              <div class="status-card-title">敏感信息</div>
+              <div class="status-badge status-need" id="dash-secrets">待扫描</div>
+            </div>
+            <div class="text-muted" style="font-size:12px;">敏感信息检查与脱敏</div>
+          </div>
+          <div class="status-card">
+            <div class="status-card-header">
+              <div class="status-card-title">分享包</div>
+              <div class="status-badge status-need" id="dash-share">待扫描</div>
+            </div>
+            <div class="text-muted" style="font-size:12px;">安全分享包生成状态</div>
+          </div>
+        </div>
+
+        <div class="flow-track">
+          <div class="flow-title">工作流程</div>
+          <div class="flow-steps" id="flow-steps">
+            <span class="flow-step" id="flow-capsule">项目档案</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-step" id="flow-env">环境扫描</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-step" id="flow-secret">密钥守卫</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-step" id="flow-share">分享打包</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-step" id="flow-receipt">工作收据</span>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="startWorkspaceCheck()" id="btn-start-check">▶ 启动工作台检查</button>
+          <button class="btn-magic" onclick="runFullPipeline()" id="btn-magic">🚀 一键安全分享</button>
+        </div>
+        <div class="simulated-tag">模拟演示 — 不读取真实系统</div>
+        <div class="simulated-tag" style="margin-left:8px;">Ctrl+1~7 快捷切换面板</div>
+      </div>
+
+      <div class="quick-start" id="quick-start" style="display:none;">
+        <div class="quick-card" id="quick-0" onclick="switchPanel('capsule')"><span class="q-icon">◉</span><span class="q-label">项目档案</span><span class="q-status todo">待开始</span></div>
+        <div class="quick-card" id="quick-1" onclick="switchPanel('envscan')"><span class="q-icon">▣</span><span class="q-label">环境扫描</span><span class="q-status todo">待开始</span></div>
+        <div class="quick-card" id="quick-2" onclick="switchPanel('secret')"><span class="q-icon">◆</span><span class="q-label">密钥守卫</span><span class="q-status todo">待开始</span></div>
+        <div class="quick-card" id="quick-3" onclick="switchPanel('share')"><span class="q-icon">◇</span><span class="q-label">分享打包</span><span class="q-status todo">待开始</span></div>
+      </div>
+
+    </section>
+
+    <!-- 项目档案面板 -->
+    <section class="panel" id="panel-capsule">
+      <div class="panel-title">项目档案</div>
+      <div class="panel-desc">定义项目上下文与目标（模拟演示）</div>
+
+      <div class="panel-section">
+        <div class="form-group">
+          <label>项目名称</label>
+          <input type="text" id="capsule-name" value="demo-workbench">
+        </div>
+        <div class="form-group">
+          <label>项目目标</label>
+          <textarea id="capsule-goal" rows="3">用 AI 辅助开发一个小型 Web 工具，并整理可安全分享的交付材料。</textarea>
+        </div>
+        <div class="form-group">
+          <label>当前阶段</label>
+          <select id="capsule-stage">
+            <option>调研</option>
+            <option selected>原型</option>
+            <option>开发</option>
+            <option>审核</option>
+            <option>交付</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>项目标签</label>
+          <div class="tag-list" id="capsule-tags">
+            <span class="tag active">AI 辅助开发</span>
+            <span class="tag active">本地优先</span>
+            <span class="tag">待审核</span>
+            <span class="tag active">安全分享</span>
+          </div>
+        </div>
+        <button class="btn btn-primary mt-2" onclick="saveCapsule()">💾 保存档案</button>
+      </div>
+    </section>
+
+    <!-- 环境扫描面板 -->
+    <section class="panel" id="panel-envscan">
+      <div class="panel-title">环境扫描</div>
+      <div class="panel-desc">模拟开发环境诊断（不访问真实系统）</div>
+
+      <div class="panel-section">
+        <button class="btn btn-primary" onclick="runEnvScan()" id="btn-envscan">▶ 运行环境扫描</button>
+        <div class="progress-track"><div class="progress-fill" id="env-progress"></div></div>
+        <div class="log-window" id="env-log"></div>
+        <div class="simulated-tag">模拟扫描，不访问真实系统</div>
+      </div>
+
+      <div class="panel-section">
+        <div class="section-title">诊断结果</div>
+        <table>
+          <thead><tr><th>检查项</th><th>状态</th></tr></thead>
+          <tbody id="env-table">
+            <tr><td>Node.js</td><td class="text-muted" id="res-node">—</td></tr>
+            <tr><td>npm</td><td class="text-muted" id="res-npm">—</td></tr>
+            <tr><td>本地 CLI</td><td class="text-muted" id="res-cli">—</td></tr>
+            <tr><td>运行时提供者</td><td class="text-muted" id="res-runtime">—</td></tr>
+            <tr><td>package.json</td><td class="text-muted" id="res-pkg">—</td></tr>
+            <tr><td>配置文件</td><td class="text-muted" id="res-settings">—</td></tr>
+            <tr><td>环境变量</td><td class="text-muted" id="res-env">—</td></tr>
+            <tr><td>系统变更检查</td><td class="text-muted" id="res-mutation">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 密钥守卫面板 -->
+    <section class="panel" id="panel-secret">
+      <div class="panel-title">密钥守卫</div>
+      <div class="panel-desc">敏感信息检测与脱敏（模拟演示）</div>
+
+      <div class="panel-section">
+        <div class="sg-layout">
+          <div>
+            <div class="section-title">模拟文件树</div>
+            <div class="file-tree" id="file-tree">
+              <div class="tree-item tree-folder">project/</div>
+              <div class="tree-item" data-file="env" onclick="selectFile('env')">  .env</div>
+              <div class="tree-item" data-file="settings" onclick="selectFile('settings')">  settings.json</div>
+              <div class="tree-item" data-file="index" onclick="selectFile('index')">  src/index.ts</div>
+              <div class="tree-item" data-file="readme" onclick="selectFile('readme')">  README.md</div>
+              <div class="tree-item" data-file="cache" onclick="selectFile('cache')">  cache/build.tmp</div>
+              <div class="tree-item" data-file="logs" onclick="selectFile('logs')">  logs/runtime.log</div>
+            </div>
+          </div>
+          <div>
+            <div class="view-toggle">
+              <button class="btn btn-sm active" id="view-before" onclick="setSecretView('before')">脱敏前</button>
+              <button class="btn btn-sm" id="view-after" onclick="setSecretView('after')">脱敏后</button>
+            </div>
+            <div class="file-preview" id="file-preview">点击左侧文件查看内容</div>
+          </div>
+        </div>
+
+        <div class="mt-3" style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="scanSecrets()">🔍 扫描密钥</button>
+          <button class="btn btn-success" onclick="applyRedaction()">✓ 执行脱敏</button>
+          <button class="btn btn-warning" style="color:#fff; background:var(--warning); border-color:var(--warning);" onclick="excludeUnsafe()">✕ 排除不安全文件</button>
+        </div>
+      </div>
+
+      <div class="panel-section custom-redact">
+        <div class="section-title">自定义脱敏</div>
+        <label style="margin-bottom:6px;">输入文本</label>
+        <textarea id="custom-redact-input" rows="2" placeholder="在此粘贴包含敏感信息的文本..."></textarea>
+        <button class="btn btn-primary mt-2" onclick="redactCustom()">执行脱敏</button>
+        <div class="redact-result" id="custom-redact-output">脱敏结果将显示在这里</div>
+      </div>
+
+      <!-- 修复建议 -->
+      <div class="panel-section" id="fix-suggestions" style="display:none;">
+        <div class="section-title">修复建议</div>
+        <div class="fix-card">
+          <div class="fix-icon">🔑</div>
+          <div class="fix-body">
+            <div class="fix-title">.env 里有硬编码的 API Key</div>
+            <div class="fix-advice">不要直接把密钥写在代码里。创建一个 <code>.env.example</code> 文件放模板，真实的 key 放到系统环境变量或用 <code>.gitignore</code> 排除。</div>
+          </div>
+        </div>
+        <div class="fix-card">
+          <div class="fix-icon">📁</div>
+          <div class="fix-body">
+            <div class="fix-title">代码中使用了绝对路径</div>
+            <div class="fix-advice">用 <code>path.join(__dirname, '...')</code> 或 <code>process.cwd()</code> 替代 <code>/home/用户名/...</code>，这样项目换个位置也能跑。</div>
+          </div>
+        </div>
+        <div class="fix-card">
+          <div class="fix-icon">📦</div>
+          <div class="fix-body">
+            <div class="fix-title">缓存和日志文件可能被打包</div>
+            <div class="fix-advice">在 <code>.gitignore</code> 或打包配置中排除 <code>cache/</code>、<code>logs/</code>、<code>*.tmp</code> 和 <code>node_modules/</code>。</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 命令预览器面板 -->
+    <section class="panel" id="panel-terminal">
+      <div class="panel-title">命令预览器</div>
+      <div class="panel-desc">模拟命令行交互（模拟演示）</div>
+      <div class="panel-section">
+        <div class="section-title">预设命令</div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;">
+          <button class="btn btn-ghost btn-sm" onclick="execCmd('check project')">check project</button>
+          <button class="btn btn-ghost btn-sm" onclick="execCmd('scan env')">scan env</button>
+          <button class="btn btn-ghost btn-sm" onclick="execCmd('list secrets')">list secrets</button>
+          <button class="btn btn-ghost btn-sm" onclick="execCmd('help')">help</button>
+          <button class="btn btn-ghost btn-sm" onclick="execCmd('clear')">clear</button>
+        </div>
+        <div class="terminal-dots"><span class="tdot r"></span><span class="tdot y"></span><span class="tdot g"></span></div>
+        <div class="terminal" id="terminal-output" style="border-radius:0 0 var(--radius-sm) var(--radius-sm);"><span style="color:var(--accent);">$</span> Agent Workbench Terminal Simulator v0.1<br><span style="color:var(--text-dim);">输入 help 查看可用命令</span><br></div>
+        <div style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+          <span style="color:var(--accent); font-family:var(--font-mono); font-size:13px;">$</span>
+          <input type="text" id="terminal-input" placeholder="输入命令..." style="flex:1;" onkeydown="if(event.key==='Enter')execCmd(this.value)">
+        </div>
+      </div>
+    </section>
+
+    <!-- 分享打包面板 -->
+    <section class="panel" id="panel-share">
+      <div class="panel-title">分享打包</div>
+      <div class="panel-desc">生成安全分享包（模拟演示）</div>
+
+      <div class="panel-section">
+        <div class="section-title">文件清单</div>
+        <div class="file-list" id="share-file-list">
+          <div class="file-row included"><span class="file-name">src/</span><span class="file-status status-included">已包含</span></div>
+          <div class="file-row included"><span class="file-name">README.md</span><span class="file-status status-included">已包含</span></div>
+          <div class="file-row included"><span class="file-name">package.json</span><span class="file-status status-included">已包含</span></div>
+          <div class="file-row included"><span class="file-name">项目档案摘要</span><span class="file-status status-included">已包含</span></div>
+          <div class="file-row included"><span class="file-name">诊断摘要</span><span class="file-status status-included">已包含</span></div>
+          <div class="file-row included"><span class="file-name">脱敏报告预览</span><span class="file-status status-included">已包含</span></div>
+          <div class="file-row excluded" id="share-env"><span class="file-name">.env 原始文件</span><span class="file-status status-excluded">已排除</span></div>
+          <div class="file-row excluded" id="share-cache"><span class="file-name">cache/</span><span class="file-status status-excluded">已排除</span></div>
+          <div class="file-row excluded" id="share-logs"><span class="file-name">logs/</span><span class="file-status status-excluded">已排除</span></div>
+          <div class="file-row excluded"><span class="file-name">临时文件</span><span class="file-status status-excluded">已排除</span></div>
+          <div class="file-row excluded"><span class="file-name">本地配置备份</span><span class="file-status status-excluded">已排除</span></div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <!-- 交付前核对清单 -->
+        <div class="preflight-checklist">
+          <div class="preflight-title">交付前核对清单</div>
+          <div class="preflight-item" id="pf-capsule"><span class="pf-check"></span>项目档案已保存</div>
+          <div class="preflight-item" id="pf-env"><span class="pf-check"></span>环境扫描已完成</div>
+          <div class="preflight-item" id="pf-secret"><span class="pf-check"></span>密钥已扫描并脱敏</div>
+          <div class="preflight-item" id="pf-exclude"><span class="pf-check"></span>不安全文件已排除</div>
+          <div class="preflight-item" id="pf-receipt"><span class="pf-check"></span>工作收据已生成</div>
+        </div>
+        <!-- 就绪门 -->
+        <div class="panel-section" id="readiness-gate" style="margin-bottom:14px;">
+          <div class="section-title">分享就绪状态</div>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <div style="display:flex; align-items:center; gap:8px; padding:5px 0; font-size:12px;" id="gate-capsule">
+              <span style="color:var(--text-dim);">○</span> 项目档案已保存
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; padding:5px 0; font-size:12px;" id="gate-env">
+              <span style="color:var(--text-dim);">○</span> 环境扫描已完成
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; padding:5px 0; font-size:12px;" id="gate-secret">
+              <span style="color:var(--text-dim);">○</span> 密钥已扫描并脱敏
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; padding:5px 0; font-size:12px;" id="gate-exclude">
+              <span style="color:var(--text-dim);">○</span> 不安全文件已排除
+            </div>
+          </div>
+          <div id="gate-status" style="margin-top:10px; padding:8px 12px; border-radius:var(--radius-sm); font-size:12px; font-weight:600; background:rgba(248,113,113,.08); color:var(--danger);">
+            ✕ 尚未满足分享条件
+          </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="generateSharePackage()" id="btn-share">▶ 生成分享包</button>
+        <div class="progress-track"><div class="progress-fill" id="share-progress"></div></div>
+        <div class="log-window" id="share-log"></div>
+      </div>
+
+      <div class="panel-section package-summary" id="share-summary" style="display:none;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+          <div class="section-title" style="margin:0;">交付包预览</div>
+          <div style="display:flex; gap:4px;">
+            <button class="btn btn-sm active" id="view-sender" onclick="setPackageView('sender')" style="font-size:11px;">发送者视角</button>
+            <button class="btn btn-sm" id="view-receiver" onclick="setPackageView('receiver')" style="font-size:11px;">收件人视角</button>
+          </div>
+        </div>
+
+        <!-- 发送者视角：完整 diff -->
+        <div id="package-view-sender">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+            <div style="background:rgba(248,113,113,.04); border:1px solid rgba(248,113,113,.15); border-radius:var(--radius-sm); padding:12px;">
+              <div style="font-size:11px; font-weight:600; color:var(--danger); margin-bottom:8px;">原始项目</div>
+              <div style="font-family:var(--font-mono); font-size:11.5px; line-height:1.8; color:var(--text-muted);">
+                <div>📁 project/</div>
+                <div style="color:var(--danger);">⚠ .env</div>
+                <div style="color:var(--warning);">⚠ settings.json</div>
+                <div>  src/</div>
+                <div>  README.md</div>
+                <div style="color:var(--danger);">⚠ cache/</div>
+                <div style="color:var(--danger);">⚠ logs/</div>
+              </div>
+            </div>
+            <div style="background:rgba(74,222,128,.04); border:1px solid rgba(74,222,128,.15); border-radius:var(--radius-sm); padding:12px;">
+              <div style="font-size:11px; font-weight:600; color:var(--success); margin-bottom:8px;">安全分享包</div>
+              <div style="font-family:var(--font-mono); font-size:11.5px; line-height:1.8; color:var(--text-muted);">
+                <div>📁 clean-share/</div>
+                <div>  src/</div>
+                <div>  README.md</div>
+                <div>  package.json</div>
+                <div style="color:var(--success);">✓ redaction-report.md</div>
+                <div style="color:var(--success);">✓ work-receipt.md</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 收件人视角 -->
+        <div id="package-view-receiver" style="display:none;">
+          <div style="font-family:var(--font-mono); font-size:12px; line-height:1.8; color:var(--text-muted); margin-bottom:12px; padding:10px 14px; background:var(--bg); border-radius:var(--radius-sm);">
+            <div style="color:var(--accent);">clean-share.zip</div>
+          <div>├─ <span style="color:var(--success);">src/</span></div>
+          <div>├─ <span style="color:var(--success);">README.md</span></div>
+          <div>├─ <span style="color:var(--success);">package.json</span></div>
+          <div>├─ <span style="color:var(--success);">project-capsule.md</span></div>
+          <div>├─ <span style="color:var(--success);">diagnostics-summary.md</span></div>
+          <div>├─ <span style="color:var(--success);">redaction-report.md</span></div>
+          <div>└─ <span style="color:var(--success);">work-receipt.md</span></div>
+          <div style="margin-top:8px; color:var(--text-dim);">已排除：</div>
+          <div>✕ <span style="color:var(--danger);">.env</span></div>
+          <div>✕ <span style="color:var(--danger);">cache/</span></div>
+          <div>✕ <span style="color:var(--danger);">logs/</span></div>
+          <div>✕ <span style="color:var(--danger);">local config backup</span></div>
+          </div>
+          <div style="font-size:12px; color:var(--text-muted); margin-top:12px; padding:10px 14px; background:rgba(74,222,128,.04); border:1px solid rgba(74,222,128,.15); border-radius:var(--radius-sm);">
+            <div style="font-weight:600; color:var(--success); margin-bottom:6px;">收件人看不到：</div>
+            <div style="line-height:1.8;">✕ .env 原始文件 · ✕ 完整 token · ✕ 本地路径 · ✕ cache/ · ✕ logs/ · ✕ 临时文件</div>
+          </div>
+        </div>
+
+        <div class="section-title" style="margin-top:16px;">分享包摘要</div>
+        <div class="summary-line"><span class="summary-label">项目</span><span class="summary-value" id="sum-project">—</span></div>
+        <div class="summary-line"><span class="summary-label">密钥</span><span class="summary-value text-success">已脱敏</span></div>
+        <div class="summary-line"><span class="summary-label">本地路径</span><span class="summary-value text-success">展示安全</span></div>
+        <div class="summary-line"><span class="summary-label">原始 .env</span><span class="summary-value text-danger">已排除</span></div>
+        <div class="summary-line"><span class="summary-label">cache/logs</span><span class="summary-value text-danger">已排除</span></div>
+        <div class="summary-line"><span class="summary-label">读取密钥存储</span><span class="summary-value">否</span></div>
+        <div class="summary-line"><span class="summary-label">启动真实 Agent</span><span class="summary-value">否</span></div>
+        <div class="summary-line"><span class="summary-label">执行终端命令</span><span class="summary-value">否</span></div>
+        <div class="summary-line"><span class="summary-label">修改系统配置</span><span class="summary-value">否</span></div>
+      </div>
+    </section>
+
+    <!-- 工作收据面板 -->
+    <section class="panel" id="panel-receipt">
+      <div class="panel-title">工作收据</div>
+      <div class="panel-desc">生成阶段证据与交付摘要（模拟演示）</div>
+
+      <div class="panel-section">
+        <div style="display:flex; gap:8px; margin-bottom:12px;">
+          <button class="btn btn-primary" onclick="generateReceipt()">▶ 生成工作收据</button>
+          <button class="btn btn-sm" onclick="copyReceipt()">📋 复制收据</button>
+          <button class="btn btn-sm" onclick="downloadReceipt()">⬇ 下载 .md</button>
+        </div>
+        <div class="receipt-preview" id="receipt-content">点击"生成工作收据"按钮生成收据...</div>
+      </div>
+    </section>
+
+    <!-- 安全边界面板 -->
+    <section class="panel" id="panel-safety">
+      <div class="panel-title">安全边界</div>
+      <div class="panel-desc">Agent Workbench 的明确能力边界</div>
+
+      <div class="panel-section">
+        <div class="section-title">Agent Workbench 不做</div>
+        <div class="boundary-grid">
+          <div class="boundary-card"><span class="icon">⊘</span>不做 AI Agent 平台</div>
+          <div class="boundary-card"><span class="icon">⊘</span>不做完整 IDE</div>
+          <div class="boundary-card"><span class="icon">⊘</span>不做模型中转</div>
+          <div class="boundary-card"><span class="icon">⊘</span>不做 Provider Gateway</div>
+          <div class="boundary-card"><span class="icon">⊘</span>不做云端平台</div>
+          <div class="boundary-card"><span class="icon">⊘</span>不默认读取密钥存储</div>
+          <div class="boundary-card"><span class="icon">⊘</span>不静默启动真实 Agent</div>
+          <div class="boundary-card"><span class="icon">⊘</span>不默认执行终端命令</div>
+          <div class="boundary-card"><span class="icon">⊘</span>不默认修改系统环境或注册表</div>
+          <div class="boundary-card"><span class="icon">⊘</span>不默认删除用户项目文件</div>
+        </div>
+      </div>
+
+      <!-- 对比：不检查 vs 检查后 -->
+      <div class="compare-cards">
+        <div class="compare-card bad">
+          <div class="c-title">🔴 不检查直接分享</div>
+          <div class="c-item">3 个密钥暴露在代码中</div>
+          <div class="c-item">2 个本地绝对路径泄露</div>
+          <div class="c-item">5 个风险文件混入分享包</div>
+          <div class="c-item">无可追溯的交付证据</div>
+        </div>
+        <div class="compare-card good">
+          <div class="c-title">🟢 Agent Workbench 处理后</div>
+          <div class="c-item">密钥全部脱敏遮蔽</div>
+          <div class="c-item">路径替换为安全示例</div>
+          <div class="c-item">缓存/日志/临时文件已排除</div>
+          <div class="c-item">生成可追溯的工作收据</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 右侧实时证据栏 -->
+  <aside class="right-rail">
+    <div class="rail-header">实时证据</div>
+    <div class="rail-stats">
+      <div class="stat-card"><div class="stat-value" id="stat-checks">0</div><div class="stat-label">已完成</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-masked">0</div><div class="stat-label">已脱敏</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-excluded">3</div><div class="stat-label">已排除</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-risks">0</div><div class="stat-label">风险项</div></div>
+    </div>
+    <div class="rail-header" style="border-top:1px solid var(--border);">事件日志</div>
+    <div class="event-log" id="event-log">
+      <div class="event-item info"><span class="event-time">[--:--:--]</span>Agent Workbench 模拟演示已启动</div>
+    </div>
+  </aside>
+</div>
+
+<script>
+  const state = {
+    projectName: 'demo-workbench',
+    projectGoal: '用 AI 辅助开发一个小型 Web 工具，并整理可安全分享的交付材料。',
+    stage: '原型',
+    tags: ['AI 辅助开发','本地优先','安全分享'],
+    checks: { capsule:false, env:false, secret:false, share:false, receipt:false },
+    secrets: { scanned:false, redacted:false, excluded:false },
+    maskedCount: 0,
+    riskCount: 0,
+    eventCount: 0,
+    currentFile: null,
+    secretView: 'before',
+    verifiedBoundaries: []
+  };
+
+  const fileContents = {
+    env: 'API_KEY=sk-test1234567890\nPROJECT_PATH=/home/demo-user/projects/private-app\nDEBUG=true',
+    settings: '{\n  "token_abcdef1234567890": "auth",\n  "workspace": "/home/demo-user/projects/private-app",\n  "port": 3000\n}',
+    index: "import { app } from './app';\n\nconst PORT = process.env.PORT || 3000;\napp.listen(PORT, () => {\n  console.log('Server running');\n});",
+    readme: '# demo-workbench\n\nA small web tool built with AI assistance.\n\n## Getting Started\n\n```bash\nnpm install\nnpm run dev\n```',
+    cache: '# build cache\n/tmp/build-abc123',
+    logs: '[2025-01-20 10:00:01] Server started\n[2025-01-20 10:00:02] Listening on port 3000'
+  };
+
+  const redactedContents = {
+    env: 'API_KEY=<span class="highlight-masked">sk-****</span>\nPROJECT_PATH=<span class="highlight-masked">/workspace/example-project</span>\nDEBUG=true',
+    settings: '{\n  "<span class="highlight-masked">token_****</span>": "auth",\n  "workspace": "<span class="highlight-masked">/workspace/example-project</span>",\n  "port": 3000\n}',
+    index: fileContents.index,
+    readme: fileContents.readme,
+    cache: fileContents.cache,
+    logs: fileContents.logs
+  };
+
+  function now() {
+    const d = new Date();
+    return d.toTimeString().split(' ')[0];
+  }
+  function logEvent(msg, type) {
+    type = type || 'info';
+    const el = document.getElementById('event-log');
+    const item = document.createElement('div');
+    item.className = 'event-item ' + type;
+    item.innerHTML = '<span class="event-time">[' + now() + ']</span>' + msg;
+    el.appendChild(item);
+    el.scrollTop = el.scrollHeight;
+    state.eventCount++;
+  }
+  function toast(msg, type) {
+    type = type || 'info';
+    const c = document.getElementById('toast-container');
+    const t = document.createElement('div');
+    t.className = 'toast ' + type;
+    t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(function() {
+      t.style.opacity = '0';
+      t.style.transform = 'translateX(20px)';
+      t.style.transition = 'opacity .3s ease, transform .3s ease';
+      setTimeout(function() { t.remove(); }, 300);
+    }, 2500);
+  }
+  function setText(id, text) { document.getElementById(id).textContent = text; }
+  function setHtml(id, html) { document.getElementById(id).innerHTML = html; }
+  function setBadge(id, text, cls) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.className = 'badge ' + cls;
+  }
+  function setStatus(id, text, cls) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.className = 'status-badge ' + cls;
+  }
+
+  // 统一刷新右侧统计数字
+  function updateStats() {
+    var completed = (state.checks.capsule?1:0) + (state.checks.env?1:0) + (state.secrets.redacted?1:0) + (state.checks.share?1:0);
+    var el = document.getElementById('stat-checks');
+    if (el.textContent !== String(completed)) {
+      el.textContent = completed;
+      el.classList.remove('stat-pop'); void el.offsetWidth; el.classList.add('stat-pop');
+    }
+    document.getElementById('stat-masked').textContent = state.maskedCount;
+    document.getElementById('stat-excluded').textContent = (state.secrets.excluded ? 5 : 3);
+    document.getElementById('stat-risks').textContent = state.secrets.redacted ? 0 : state.riskCount;
+  }
+
+  // 更新流程条当前步骤
+  function updateFlowCurrent() {
+    var steps = ['flow-capsule','flow-env','flow-secret','flow-share','flow-receipt'];
+    var current = null;
+    if (!state.checks.capsule) current = 'flow-capsule';
+    else if (!state.checks.env) current = 'flow-env';
+    else if (!state.secrets.redacted) current = 'flow-secret';
+    else if (!state.checks.share) current = 'flow-share';
+    else if (!state.checks.receipt) current = 'flow-receipt';
+    steps.forEach(function(s) {
+      var el = document.getElementById(s);
+      el.classList.remove('current');
+      if (s === current) el.classList.add('current');
+    });
+  }
+
+  // 安全边界验证: 操作执行时对应卡片亮绿灯
+  function verifyBoundary(index) {
+    if (state.verifiedBoundaries.indexOf(index) === -1) {
+      state.verifiedBoundaries.push(index);
+      var cards = document.querySelectorAll('.boundary-card');
+      if (cards[index]) cards[index].classList.add('verified');
+    }
+  }
+
+  // 刷新 Dashboard 快速操作面板
+  function updateQuickStart() {
+    var items = [
+      {icon:'◉', label:'项目档案', done: state.checks.capsule},
+      {icon:'▣', label:'环境扫描', done: state.checks.env},
+      {icon:'◆', label:'密钥守卫', done: state.secrets.redacted},
+      {icon:'◇', label:'分享打包', done: state.checks.share}
+    ];
+    items.forEach(function(item, i) {
+      var card = document.getElementById('quick-' + i);
+      if (!card) return;
+      var badge = card.querySelector('.q-status');
+      if (item.done) {
+        badge.textContent = '已完成';
+        badge.className = 'q-status done';
+      } else {
+        badge.textContent = '待开始';
+        badge.className = 'q-status todo';
+      }
+    });
+  }
+
+  // 更新项目健康指数
+  function updateHealthScore() {
+    var completed = (state.checks.capsule?1:0) + (state.checks.env?1:0) + (state.secrets.redacted?1:0) + (state.checks.share?1:0);
+    var pct = completed / 4 * 100;
+    var el = document.getElementById('health-score');
+    el.textContent = pct + '%';
+    if (pct >= 100) el.classList.add('safe'); else el.classList.remove('safe');
+    document.getElementById('health-bar').style.width = pct + '%';
+  }
+
+  // 更新多维度子评分
+  function updateSubScores() {
+    var setSub = function(id, barId, done, color) {
+      var el = document.getElementById(id);
+      var bar = document.getElementById(barId);
+      if (done) { el.textContent = '100%'; el.style.color = 'var(--success)'; bar.style.width = '100%'; }
+      else { el.textContent = '0%'; el.style.color = 'var(--text-dim)'; bar.style.width = '0%'; }
+    };
+    setSub('sub-env', 'sub-env-bar', state.checks.env);
+    setSub('sub-secret', 'sub-secret-bar', state.secrets.redacted);
+    setSub('sub-share', 'sub-share-bar', state.checks.share);
+  }
+
+  // 更新分享就绪门
+  function updateReadinessGate() {
+    var items = [
+      {gate:'gate-capsule', done: state.checks.capsule},
+      {gate:'gate-env', done: state.checks.env},
+      {gate:'gate-secret', done: state.secrets.redacted},
+      {gate:'gate-exclude', done: state.secrets.excluded}
+    ];
+    var allDone = true;
+    items.forEach(function(item) {
+      var el = document.getElementById(item.gate);
+      if (!el) return;
+      var icon = el.querySelector('span');
+      if (item.done) {
+        icon.textContent = '✓';
+        icon.style.color = 'var(--success)';
+        el.style.color = 'var(--success)';
+      } else {
+        icon.textContent = '○';
+        icon.style.color = 'var(--text-dim)';
+        el.style.color = 'var(--text-muted)';
+        allDone = false;
+      }
+    });
+    var statusEl = document.getElementById('gate-status');
+    if (!statusEl) return;
+    if (allDone) {
+      statusEl.innerHTML = '✓ 所有检查已完成，可以生成分享包';
+      statusEl.style.background = 'rgba(74,222,128,.08)';
+      statusEl.style.color = 'var(--success)';
+    } else {
+      var missing = [];
+      if (!state.checks.capsule) missing.push('项目档案');
+      if (!state.checks.env) missing.push('环境扫描');
+      if (!state.secrets.redacted) missing.push('密钥脱敏');
+      if (!state.secrets.excluded) missing.push('排除不安全文件');
+      statusEl.innerHTML = '✕ 尚未满足分享条件：' + missing.join('、');
+      statusEl.style.background = 'rgba(248,113,113,.08)';
+      statusEl.style.color = 'var(--danger)';
+    }
+  }
+
+  // 交付包视角切换
+  function setPackageView(view) {
+    document.getElementById('package-view-sender').style.display = view === 'sender' ? 'block' : 'none';
+    document.getElementById('package-view-receiver').style.display = view === 'receiver' ? 'block' : 'none';
+    document.getElementById('view-sender').classList.toggle('active', view === 'sender');
+    document.getElementById('view-receiver').classList.toggle('active', view === 'receiver');
+  }
+
+  // 更新交付前核对清单
+  function updatePreflight() {
+    var items = [
+      {id:'pf-capsule', done: state.checks.capsule},
+      {id:'pf-env', done: state.checks.env},
+      {id:'pf-secret', done: state.secrets.redacted},
+      {id:'pf-exclude', done: state.secrets.excluded},
+      {id:'pf-receipt', done: state.checks.receipt}
+    ];
+    items.forEach(function(item) {
+      var el = document.getElementById(item.id);
+      if (!el) return;
+      if (item.done) el.classList.add('done'); else el.classList.remove('done');
+    });
+  }
+
+  // Hero 即时脱敏试用
+  function heroRedact() {
+    var input = document.getElementById('hero-redact-input').value;
+    if (!input.trim()) { toast('请先粘贴一段文本','warning'); return; }
+    var out = input;
+    out = out.replace(/sk-[a-zA-Z0-9]+/g, 'sk-****');
+    out = out.replace(/token_[a-zA-Z0-9]+/g, 'token_****');
+    out = out.replace(/api_key\s*=\s*[^\s]+/gi, 'api_key=****');
+    out = out.replace(/\/home\/[^\s\n]+/g, '/workspace/example-project');
+    out = out.replace(/\/Users\/[^\/]+\/[^\s\n]+/g, '/workspace/example-project');
+    out = out.replace(/[A-Za-z]:\\[^\s\n]+/g, 'C:\\workspace\\example-project');
+    document.getElementById('hero-redact-output').innerHTML = out.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    document.getElementById('hero-redact-output').style.color = 'var(--success)';
+    setTimeout(function() { document.getElementById('hero-redact-output').style.color = 'var(--text-muted)'; }, 2000);
+    logEvent('Hero即时脱敏已执行','info');
+  }
+
+  // 一键完整流程
+  async function runFullPipeline() {
+    showWorkspace();
+    var btns = [document.getElementById('btn-magic'), document.getElementById('btn-hero-magic')];
+    btns.forEach(function(b) { if (b) { b.disabled = true; b.textContent = '⏳ 运行中...'; } });
+    toast('一键安全分享启动，请勿操作','info');
+    logEvent('一键安全分享流程启动','info');
+
+    // Step 1: 保存项目档案 (if not done)
+    if (!state.checks.capsule) {
+      switchPanel('capsule');
+      await new Promise(function(r) { setTimeout(r, 400); });
+      saveCapsule();
+      await new Promise(function(r) { setTimeout(r, 300); });
+    }
+
+    // Step 2: 环境扫描
+    if (!state.checks.env) {
+      switchPanel('envscan');
+      await new Promise(function(r) { setTimeout(r, 400); });
+      await runEnvScan();
+      await new Promise(function(r) { setTimeout(r, 300); });
+    }
+
+    // Step 3: 密钥扫描 + 脱敏
+    if (!state.secrets.scanned) {
+      switchPanel('secret');
+      await new Promise(function(r) { setTimeout(r, 400); });
+      scanSecrets();
+      await new Promise(function(r) { setTimeout(r, 600); });
+    }
+    if (!state.secrets.redacted) {
+      applyRedaction();
+      await new Promise(function(r) { setTimeout(r, 300); });
+    }
+
+    // Step 4: 排除不安全文件
+    if (!state.secrets.excluded) {
+      excludeUnsafe();
+      await new Promise(function(r) { setTimeout(r, 300); });
+    }
+
+    // Step 5: 生成分享包
+    if (!state.checks.share) {
+      switchPanel('share');
+      await new Promise(function(r) { setTimeout(r, 400); });
+      await generateSharePackage();
+      await new Promise(function(r) { setTimeout(r, 300); });
+    }
+
+    // Step 6: 生成收据
+    if (!state.checks.receipt) {
+      switchPanel('receipt');
+      await new Promise(function(r) { setTimeout(r, 400); });
+      generateReceipt();
+      await new Promise(function(r) { setTimeout(r, 300); });
+    }
+
+    // 回到 Dashboard
+    switchPanel('dashboard');
+    updatePreflight();
+    showCert();
+    toast('一键安全分享完成！','success');
+    logEvent('一键安全分享流程完成','success');
+    btns.forEach(function(b) { if (b) { b.textContent = '✅ 已完成'; } });
+    setTimeout(function() {
+      btns.forEach(function(b) { if (b) { b.textContent = '🚀 一键安全分享'; b.disabled = false; } });
+    }, 3000);
+  }
+
+  // 导航
+  function switchPanel(name) {
+    document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
+    document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+    document.getElementById('panel-' + name).classList.add('active');
+    document.querySelector('.nav-item[data-panel="' + name + '"]').classList.add('active');
+    logEvent('切换到' + name + '面板');
+  }
+
+  // 工作台
+  function updateDashboard() {
+    if (state.checks.capsule) setStatus('dash-context','就绪','status-ready');
+    if (state.checks.env) setStatus('dash-env','已完成','status-done');
+    if (state.secrets.scanned && !state.secrets.redacted) setStatus('dash-secrets','有风险','status-warn');
+    else if (state.secrets.redacted) setStatus('dash-secrets','已完成','status-done');
+    if (state.checks.share) setStatus('dash-share','已完成','status-done');
+
+    if (state.checks.capsule) document.getElementById('flow-capsule').classList.add('done');
+    if (state.checks.env) document.getElementById('flow-env').classList.add('done');
+    if (state.secrets.redacted) document.getElementById('flow-secret').classList.add('done');
+    if (state.checks.share) document.getElementById('flow-share').classList.add('done');
+    if (state.checks.receipt) document.getElementById('flow-receipt').classList.add('done');
+  }
+  function showWorkspace() {
+    document.getElementById('dashboard-hero').style.display = 'none';
+    document.getElementById('dashboard-cert').style.display = 'none';
+    document.getElementById('dashboard-workspace').style.display = 'block';
+    document.getElementById('quick-start').style.display = 'grid';
+  }
+  function showCert() {
+    document.getElementById('dashboard-hero').style.display = 'none';
+    document.getElementById('dashboard-workspace').style.display = 'block';
+    document.getElementById('dashboard-cert').style.display = 'block';
+    document.getElementById('quick-start').style.display = 'grid';
+  }
+  function startWorkspaceCheck() {
+    showWorkspace();
+    toast('工作台检查已启动，请前往环境扫描');
+    logEvent('工作台检查已启动');
+    setTimeout(function() { switchPanel('envscan'); }, 400);
+  }
+
+  // 项目档案
+  document.querySelectorAll('#capsule-tags .tag').forEach(function(tag) {
+    tag.onclick = function() {
+      tag.classList.toggle('active');
+      var text = tag.textContent;
+      if (tag.classList.contains('active')) {
+        if (state.tags.indexOf(text) === -1) state.tags.push(text);
+      } else {
+        state.tags = state.tags.filter(function(t) { return t !== text; });
+      }
+    };
+  });
+  function saveCapsule() {
+    state.projectName = document.getElementById('capsule-name').value || 'demo-workbench';
+    state.projectGoal = document.getElementById('capsule-goal').value;
+    state.stage = document.getElementById('capsule-stage').value;
+    setText('top-project', state.projectName);
+    setText('top-stage', state.stage);
+    state.checks.capsule = true;
+    updateDashboard();
+    updateFlowCurrent();
+    updateStats();
+    updateQuickStart();
+    updateHealthScore();
+    updatePreflight();
+    updateSubScores();
+    updateReadinessGate();
+    logEvent('项目档案已保存: ' + state.projectName, 'success');
+    toast('项目档案已保存', 'success');
+    updateReceiptPreview();
+    document.getElementById('sum-project').textContent = state.projectName;
+  }
+
+  // 环境扫描
+  async function runEnvScan() {
+    var btn = document.getElementById('btn-envscan');
+    btn.disabled = true;
+    var prog = document.getElementById('env-progress');
+    var logEl = document.getElementById('env-log');
+    logEl.innerHTML = '';
+    var lines = [
+      {t:'正在检测 Node.js 版本...', cls:'info', delay:200},
+      {t:'检测到 Node.js v20.11.0', cls:'ok', delay:400, id:'res-node', val:'正常'},
+      {t:'正在检测 npm...', cls:'info', delay:300},
+      {t:'检测到 npm 10.2.4', cls:'ok', delay:400, id:'res-npm', val:'正常'},
+      {t:'正在检测本地 CLI...', cls:'info', delay:300},
+      {t:'本地 CLI 配置已找到，需要审核', cls:'warn', delay:500, id:'res-cli', val:'待审核'},
+      {t:'正在检测运行时提供者...', cls:'info', delay:300},
+      {t:'运行时提供者: 已检测到', cls:'ok', delay:400, id:'res-runtime', val:'已检测'},
+      {t:'正在查找 package.json...', cls:'info', delay:300},
+      {t:'package.json 已找到', cls:'ok', delay:400, id:'res-pkg', val:'已找到'},
+      {t:'正在检查配置文件...', cls:'info', delay:300},
+      {t:'settings.json 已找到', cls:'ok', delay:400, id:'res-settings', val:'已找到'},
+      {t:'正在扫描环境变量...', cls:'info', delay:300},
+      {t:'敏感值已遮蔽', cls:'warn', delay:500, id:'res-env', val:'敏感值已遮蔽'},
+      {t:'正在检查系统变更...', cls:'info', delay:300},
+      {t:'未检测到系统变更', cls:'ok', delay:400, id:'res-mutation', val:'无变更'},
+      {t:'扫描完成。', cls:'ok', delay:300}
+    ];
+    var progress = 0;
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      await new Promise(function(r) { setTimeout(r, line.delay); });
+      var div = document.createElement('div');
+      div.className = 'log-line ' + line.cls;
+      div.textContent = '[' + now() + '] ' + line.t;
+      logEl.appendChild(div);
+      logEl.scrollTop = logEl.scrollHeight;
+      if (line.id) setText(line.id, line.val);
+      progress += 7;
+      prog.style.width = Math.min(progress, 100) + '%';
+      logEvent(line.t, line.cls==='ok'?'success': line.cls==='warn'?'warn':'info');
+    }
+    prog.style.width = '100%';
+    state.checks.env = true;
+    updateDashboard();
+    setBadge('top-risk','需要审核','badge-warn');
+    verifyBoundary(7); // 不默认执行终端命令
+    verifyBoundary(8); // 不默认修改系统环境或注册表
+    toast('环境扫描完成','success');
+    btn.disabled = false;
+    updateFlowCurrent();
+    updateStats();
+    updateQuickStart();
+    updateHealthScore();
+    updatePreflight();
+    updateSubScores();
+    updateReadinessGate();
+    // scanSecrets also updates gate
+  }
+
+  // 密钥守卫
+  function selectFile(name) {
+    state.currentFile = name;
+    document.querySelectorAll('.tree-item').forEach(function(t) { t.classList.remove('active'); });
+    var item = document.querySelector('.tree-item[data-file="' + name + '"]');
+    if (item) item.classList.add('active');
+    renderFilePreview();
+  }
+  function renderFilePreview() {
+    var name = state.currentFile;
+    if (!name) return;
+    var titles = {env:'.env', settings:'settings.json', index:'src/index.ts', readme:'README.md', cache:'cache/build.tmp', logs:'logs/runtime.log'};
+    var title = titles[name] || name;
+    var isRedacted = state.secrets.redacted;
+    var isAfterView = state.secretView === 'after';
+
+    // 脱敏完成 + After 视图 = 左右分栏
+    if (isRedacted && isAfterView) {
+      var beforeContent = fileContents[name];
+      var afterContent = redactedContents[name] || fileContents[name];
+      var beforeSafe = beforeContent.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      beforeSafe = beforeSafe.replace(/sk-test[0-9]+/g, function(m) { return '<span class="highlight-risk">' + m + '</span>'; })
+                             .replace(/token_[a-z0-9]+/g, function(m) { return '<span class="highlight-risk">' + m + '</span>'; })
+                             .replace(/\/home\/[^\s]+/g, function(m) { return '<span class="highlight-risk">' + m + '</span>'; });
+      var html = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; height:100%;">' +
+        '<div style="border:1px solid rgba(248,113,113,.3); border-radius:6px; padding:10px; background:rgba(248,113,113,.04);">' +
+        '<div style="font-size:10px; color:var(--danger); margin-bottom:6px; font-weight:600;">\u2BFE 脱敏前</div>' +
+        '<div style="color:var(--text-muted);">' + beforeSafe + '</div></div>' +
+        '<div style="border:1px solid rgba(74,222,128,.3); border-radius:6px; padding:10px; background:rgba(74,222,128,.04);">' +
+        '<div style="font-size:10px; color:var(--success); margin-bottom:6px; font-weight:600;">\u2BFE 脱敏后</div>' +
+        '<div style="color:var(--text-muted);">' + afterContent + '</div></div></div>';
+      setHtml('file-preview', html);
+      return;
+    }
+
+    // 单栏视图
+    var content = (isAfterView && isRedacted) ? (redactedContents[name] || fileContents[name]) : fileContents[name];
+    var html = '<div style="color:var(--text-dim); margin-bottom:8px;">' + title + '</div>';
+    if (isAfterView && isRedacted) {
+      html += content;
+    } else {
+      var safe = content.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      if (state.secrets.scanned && !state.secrets.redacted) {
+        safe = safe.replace(/sk-test[0-9]+/g, function(m) { return '<span class="highlight-risk">' + m + '</span>'; })
+                   .replace(/token_[a-z0-9]+/g, function(m) { return '<span class="highlight-risk">' + m + '</span>'; })
+                   .replace(/\/home\/[^\s]+/g, function(m) { return '<span class="highlight-risk">' + m + '</span>'; });
+      }
+      html += safe;
+    }
+    setHtml('file-preview', html);
+  }
+  function setSecretView(view) {
+    state.secretView = view;
+    document.getElementById('view-before').classList.toggle('active', view==='before');
+    document.getElementById('view-after').classList.toggle('active', view==='after');
+    renderFilePreview();
+  }
+  function scanSecrets() {
+    state.secrets.scanned = true;
+    state.riskCount = 3;
+    document.querySelector('.tree-item[data-file="env"]').classList.add('risk');
+    document.querySelector('.tree-item[data-file="settings"]').classList.add('risk');
+    setStatus('dash-secrets','有风险','status-warn');
+    logEvent('在 .env 中发现敏感值','warn');
+    logEvent('在 settings.json 中检测到 Token 模式','warn');
+    logEvent('在 settings.json 中发现本地路径暴露','warn');
+    verifyBoundary(5); // 不默认读取密钥存储
+    updateFlowCurrent();
+    updateStats();
+    updateQuickStart();
+    updatePreflight();
+    updateReadinessGate();
+    document.getElementById('fix-suggestions').style.display = 'block';
+    toast('发现 3 处敏感信息','warning');
+    renderFilePreview();
+  }
+  function applyRedaction() {
+    if (!state.secrets.scanned) { toast('请先点击"扫描密钥"','warning'); return; }
+    state.secrets.redacted = true;
+    state.maskedCount = 3;
+    setStatus('dash-secrets','已完成','status-done');
+
+    // 脱敏动画：逐行脉动 → 翻转
+    var risks = document.querySelectorAll('.highlight-risk');
+    var delay = 0;
+    risks.forEach(function(el, i) {
+      setTimeout(function() { el.style.animation = 'redact-pulse .5s ease'; }, delay);
+      setTimeout(function() { el.classList.add('highlight-flip'); }, delay + 400);
+      delay += 200;
+    });
+
+    // 动画结束后切 After 视图
+    setTimeout(function() {
+      setSecretView('after');
+      logEvent('API 密钥已脱敏','success');
+      logEvent('Token 已脱敏','success');
+      logEvent('本地路径已清理','success');
+      verifyBoundary(5);
+      updateFlowCurrent();
+      updateStats();
+      updateQuickStart();
+      updateHealthScore();
+      updatePreflight();
+      updateReadinessGate();
+      toast('脱敏已应用','success');
+      updateDashboard();
+    }, delay + 600);
+  }
+  function excludeUnsafe() {
+    state.secrets.excluded = true;
+    ['cache','logs'].forEach(function(f) {
+      var el = document.querySelector('.tree-item[data-file="' + f + '"]');
+      if (el) el.classList.add('excluded');
+    });
+    document.getElementById('share-cache').classList.add('excluded');
+    document.getElementById('share-logs').classList.add('excluded');
+    logEvent('cache/ 已标记为排除','info');
+    logEvent('logs/ 已标记为排除','info');
+    updateStats();
+    updatePreflight();
+    updateReadinessGate();
+    toast('不安全文件已排除','success');
+  }
+  function redactCustom() {
+    var input = document.getElementById('custom-redact-input').value;
+    if (!input.trim()) { toast('请输入文本','warning'); return; }
+    var out = input;
+    out = out.replace(/sk-[a-zA-Z0-9]+/g, 'sk-****');
+    out = out.replace(/token_[a-zA-Z0-9]+/g, 'token_****');
+    out = out.replace(/api_key\s*=\s*[^\s]+/gi, 'api_key=****');
+    out = out.replace(/\/home\/[^\s\n]+/g, '/workspace/example-project');
+    out = out.replace(/\/Users\/[^\/]+\/[^\s\n]+/g, '/workspace/example-project');
+    out = out.replace(/[A-Za-z]:\\[^\s\n]+/g, 'C:\\workspace\\example-project');
+    setHtml('custom-redact-output', out.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>'));
+    logEvent('自定义脱敏已执行','info');
+    toast('自定义脱敏完成','success');
+  }
+
+  // 命令预览器
+  function escapeHtml(text) {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function execCmd(cmd) {
+    if (!cmd.trim()) return;
+    var output = document.getElementById('terminal-output');
+    output.innerHTML += '<span style="color:var(--accent);">$</span> ' + escapeHtml(cmd) + '<br>';
+    document.getElementById('terminal-input').value = '';
+
+    var lines = [];
+    var cmdLower = cmd.toLowerCase().trim();
+
+    if (cmdLower === 'clear') {
+      output.innerHTML = '';
+      logEvent('终端已清屏', 'info');
+      return;
+    }
+    if (cmdLower === 'help') {
+      lines = ['可用命令:', '  check project  — 查看项目状态', '  scan env      — 运行环境扫描', '  list secrets   — 列出敏感信息', '  help          — 显示帮助', '  clear         — 清屏'];
+    } else if (cmdLower === 'check project') {
+      lines = ['项目: ' + state.projectName, '阶段: ' + state.stage, '档案: ' + (state.checks.capsule ? '已保存' : '未保存'), '环境: ' + (state.checks.env ? '已扫描' : '未扫描'), '密钥: ' + (state.secrets.redacted ? '已脱敏' : '未处理'), '分享: ' + (state.checks.share ? '已生成' : '未生成')];
+    } else if (cmdLower === 'scan env') {
+      if (state.checks.env) { lines = ['环境扫描已完成，结果:', '  Node.js: 正常', '  npm: 正常', '  本地 CLI: 待审核', '  运行时提供者: 已检测', '  package.json: 已找到']; }
+      else { lines = ['环境扫描尚未执行。', '请先前往"环境扫描"面板运行扫描。']; switchPanel('envscan'); }
+    } else if (cmdLower === 'list secrets') {
+      if (state.secrets.scanned) { lines = ['检测到的敏感信息:', '  .env: API_KEY (已' + (state.secrets.redacted ? '脱敏' : '暴露') + ')', '  settings.json: token (已' + (state.secrets.redacted ? '脱敏' : '暴露') + ')', '  settings.json: 本地路径 (已' + (state.secrets.redacted ? '清理' : '暴露') + ')', '脱敏数量: ' + state.maskedCount]; }
+      else { lines = ['尚未执行密钥扫描。', '请先前往"密钥守卫"面板扫描密钥。']; }
+    } else {
+      lines = ['未知命令: ' + cmd, '输入 help 查看可用命令'];
+    }
+
+    var idx = 0;
+    function addLine() {
+      if (idx >= lines.length) {
+        output.innerHTML += '<br>';
+        output.scrollTop = output.scrollHeight;
+        return;
+      }
+      output.innerHTML += lines[idx] + '<br>';
+      output.scrollTop = output.scrollHeight;
+      idx++;
+      setTimeout(addLine, 80);
+    }
+    setTimeout(addLine, 100);
+    logEvent('终端执行: ' + cmd, 'info');
+  }
+
+  // 分享打包
+  async function generateSharePackage() {
+    // 检查所有前置条件
+    var missing = [];
+    if (!state.checks.capsule) missing.push('项目档案');
+    if (!state.checks.env) missing.push('环境扫描');
+    if (!state.secrets.redacted) missing.push('密钥脱敏');
+    if (!state.secrets.excluded) missing.push('排除不安全文件');
+    if (missing.length) {
+      toast('请先完成: ' + missing.join('、'),'warning');
+      logEvent('分享包已阻止: ' + missing.join('、') + ' 未完成','warn');
+      return;
+    }
+    var btn = document.getElementById('btn-share');
+    if (btn.disabled) return;
+    btn.disabled = true;
+    var prog = document.getElementById('share-progress');
+    var logEl = document.getElementById('share-log');
+    logEl.innerHTML = '';
+    var stages = [
+      '正在准备项目档案',
+      '正在检查排除文件',
+      '正在应用脱敏',
+      '正在构建包清单',
+      '正在生成交付摘要',
+      '已完成'
+    ];
+    for (var i = 0; i < stages.length; i++) {
+      await new Promise(function(r) { setTimeout(r, 600); });
+      var div = document.createElement('div');
+      div.className = 'log-line info';
+      div.textContent = '[' + now() + '] ' + (i+1) + '. ' + stages[i];
+      logEl.appendChild(div);
+      logEl.scrollTop = logEl.scrollHeight;
+      prog.style.width = ((i+1)/stages.length*100) + '%';
+      logEvent(stages[i], 'info');
+    }
+    state.checks.share = true;
+    updateDashboard();
+    updateFlowCurrent();
+    setBadge('top-share','已就绪','badge-ok');
+    document.getElementById('share-summary').style.display = 'block';
+    document.getElementById('sum-project').textContent = state.projectName;
+    updateStats();
+    updateQuickStart();
+    updateHealthScore();
+    updatePreflight();
+    updateSubScores();
+    updateReadinessGate();
+    toast('分享包生成完成','success');
+    btn.disabled = false;
+  }
+
+  // 工作收据
+  function buildReceiptMarkdown() {
+    return '# Agent Workbench 工作收据\n\n' +
+      '## 项目\n' +
+      '- 名称: ' + state.projectName + '\n' +
+      '- 目标: ' + state.projectGoal + '\n' +
+      '- 阶段: ' + state.stage + '\n\n' +
+      '## 检查项\n' +
+      '- 项目档案已保存: ' + (state.checks.capsule ? '是' : '否') + '\n' +
+      '- 环境扫描: ' + (state.checks.env ? '通过' : '未执行') + '\n' +
+      '- 密钥守卫: ' + (state.secrets.redacted ? '通过' : '未执行') + '\n' +
+      '- 分享包: ' + (state.checks.share ? '已生成' : '未执行') + '\n\n' +
+      '## 安全\n' +
+      '- 读取密钥存储: 否\n' +
+      '- 启动真实 Agent: 否\n' +
+      '- 执行终端命令: 否\n' +
+      '- 修改系统配置: 否\n' +
+      '- 本地路径: 展示安全\n\n' +
+      '## 会话信息\n' +
+      '- 生成时间: ' + new Date().toLocaleString('zh-CN') + '\n' +
+      '- 项目: ' + state.projectName + '\n' +
+      '- 本收据有效期为本次会话\n\n' +
+      '## 后续计划\n' +
+      '- 完整 AI 终端会话: 规划中\n' +
+      '- 命令审批执行: 规划中\n' +
+      '- 文件差异审批: 规划中\n' +
+      '- 工作收据自动化: 规划中\n\n' +
+      '---\n' +
+      '*由 Agent Workbench 生成（模拟演示）*\n';
+  }
+  function generateReceipt() {
+    var md = buildReceiptMarkdown();
+    setText('receipt-content', md);
+    state.checks.receipt = true;
+    updateDashboard();
+    updateFlowCurrent();
+    updateStats();
+    updateQuickStart();
+    updateHealthScore();
+    updatePreflight();
+    updateSubScores();
+    updateReadinessGate();
+    logEvent('工作收据已生成','success');
+    toast('工作收据已生成','success');
+  }
+  function updateReceiptPreview() {
+    if (state.checks.receipt) generateReceipt();
+  }
+  function copyReceipt() {
+    var text = document.getElementById('receipt-content').textContent;
+    navigator.clipboard.writeText(text).then(function() { toast('收据已复制','success'); });
+    logEvent('工作收据已复制','info');
+  }
+  function downloadReceipt() {
+    var text = buildReceiptMarkdown();
+    var blob = new Blob([text], {type:'text/markdown'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = state.projectName + '-work-receipt.md';
+    a.click();
+    URL.revokeObjectURL(url);
+    logEvent('工作收据已下载','info');
+    toast('收据已下载','success');
+  }
+
+  // 顶部栏操作
+  function resetDemo() {
+    // 重置全局状态
+    state.projectName = 'demo-workbench';
+    state.projectGoal = '用 AI 辅助开发一个小型 Web 工具，并整理可安全分享的交付材料。';
+    state.stage = '原型';
+    state.tags = ['AI 辅助开发','本地优先','安全分享'];
+    state.checks = { capsule:false, env:false, secret:false, share:false, receipt:false };
+    state.secrets = { scanned:false, redacted:false, excluded:false };
+    state.maskedCount = 0;
+    state.riskCount = 0;
+    state.currentFile = 'env';
+    state.secretView = 'before';
+    state.verifiedBoundaries = [];
+
+    // 还原顶部栏
+    setText('top-project', 'demo-workbench');
+    setText('top-stage', '原型');
+    setBadge('top-risk','待扫描','badge-need');
+    setBadge('top-share','未就绪','badge-danger');
+
+    // 还原 Dashboard 状态卡
+    setStatus('dash-context','待扫描','status-need');
+    setStatus('dash-env','待扫描','status-need');
+    setStatus('dash-secrets','待扫描','status-need');
+    setStatus('dash-share','待扫描','status-need');
+
+    // 还原流程条
+    ['flow-capsule','flow-env','flow-secret','flow-share','flow-receipt'].forEach(function(s) {
+      document.getElementById(s).classList.remove('done','current');
+    });
+
+    // 还原环境扫描
+    document.getElementById('env-progress').style.width = '0%';
+    document.getElementById('env-log').innerHTML = '';
+    ['res-node','res-npm','res-cli','res-runtime','res-pkg','res-settings','res-env','res-mutation'].forEach(function(id) {
+      setText(id, '—');
+    });
+    document.getElementById('btn-envscan').disabled = false;
+
+    // 还原密钥守卫
+    document.querySelectorAll('.tree-item').forEach(function(t) { t.classList.remove('active','risk','excluded'); });
+    setHtml('file-preview', '点击左侧文件查看内容');
+    document.getElementById('view-before').classList.add('active');
+    document.getElementById('view-after').classList.remove('active');
+    document.getElementById('custom-redact-input').value = '';
+    setHtml('custom-redact-output', '脱敏结果将显示在这里');
+
+    // 还原终端
+    document.getElementById('terminal-output').innerHTML = '<span style="color:var(--accent);">$</span> Agent Workbench Terminal Simulator v0.1<br><span style="color:var(--text-dim);">输入 help 查看可用命令</span><br>';
+    document.getElementById('terminal-input').value = '';
+
+    // 还原分享打包
+    document.getElementById('share-progress').style.width = '0%';
+    document.getElementById('share-log').innerHTML = '';
+    document.getElementById('share-summary').style.display = 'none';
+    document.getElementById('btn-share').disabled = false;
+
+    // 还原收据
+    setText('receipt-content', '点击"生成工作收据"按钮生成收据...');
+
+    // 还原右侧统计
+    document.getElementById('stat-checks').textContent = '0';
+    document.getElementById('stat-masked').textContent = '0';
+    document.getElementById('stat-excluded').textContent = '3';
+    document.getElementById('stat-risks').textContent = '0';
+
+    // 还原事件日志
+    var logEl = document.getElementById('event-log');
+    logEl.innerHTML = '<div class="event-item info"><span class="event-time">[--:--:--]</span>Agent Workbench 模拟演示已启动</div>';
+
+    // 还原表单
+    document.getElementById('capsule-name').value = 'demo-workbench';
+    document.getElementById('capsule-goal').value = '用 AI 辅助开发一个小型 Web 工具，并整理可安全分享的交付材料。';
+    document.getElementById('capsule-stage').value = '原型';
+    document.querySelectorAll('#capsule-tags .tag').forEach(function(t) {
+      var txt = t.textContent;
+      if (txt === '待审核') t.classList.remove('active');
+      else t.classList.add('active');
+    });
+
+    // 还原修复建议面板
+    var fixEl = document.getElementById('fix-suggestions');
+    if (fixEl) fixEl.style.display = 'none';
+
+    // 还原就绪门
+    updateReadinessGate();
+
+    // 还原交付包视角
+    setPackageView('sender');
+
+    // 还原安全边界卡
+    document.querySelectorAll('.boundary-card').forEach(function(c) { c.classList.remove('verified'); });
+
+    // 还原快速操作
+    updateQuickStart();
+
+    // 还原健康指数
+    document.getElementById('health-score').textContent = '0%';
+    document.getElementById('health-score').classList.remove('safe');
+    document.getElementById('health-bar').style.width = '0%';
+
+    // 还原 Dashboard 视图：英雄区
+    document.getElementById('dashboard-hero').style.display = 'block';
+    document.getElementById('dashboard-cert').style.display = 'none';
+    document.getElementById('dashboard-workspace').style.display = 'none';
+    document.getElementById('quick-start').style.display = 'none';
+    var heroBtn = document.getElementById('btn-hero-magic');
+    if (heroBtn) { heroBtn.textContent = '🚀 体验完整流程'; heroBtn.disabled = false; }
+    var heroInput = document.getElementById('hero-redact-input');
+    if (heroInput) heroInput.value = '';
+    var heroOutput = document.getElementById('hero-redact-output');
+    if (heroOutput) { heroOutput.innerHTML = '结果会显示在这里'; heroOutput.style.color = 'var(--text-muted)'; }
+    var magicBtn = document.getElementById('btn-magic');
+    if (magicBtn) { magicBtn.textContent = '🚀 一键安全分享'; magicBtn.disabled = false; }
+
+    // 切回 Dashboard
+    switchPanel('dashboard');
+    updateFlowCurrent();
+    updateStats();
+    updatePreflight();
+    selectFile('env');
+    logEvent('演示已重置','info');
+    toast('演示已重置','success');
+  }
+  function exportReceipt() { downloadReceipt(); }
+  function copySummary() {
+    var summary = 'Agent Workbench — ' + state.projectName +
+      '\n阶段: ' + state.stage +
+      '\n档案: ' + (state.checks.capsule?'已完成':'待完成') +
+      ' | 环境: ' + (state.checks.env?'已完成':'待完成') +
+      ' | 密钥: ' + (state.secrets.redacted?'已完成':'待完成') +
+      ' | 分享: ' + (state.checks.share?'已完成':'待完成');
+    navigator.clipboard.writeText(summary).then(function() { toast('摘要已复制','success'); });
+    logEvent('摘要已复制到剪贴板','info');
+  }
+
+  // === 视觉特效增强 ===
+
+  // Spotlight: Dashboard 状态卡鼠标高光追踪
+  (function() {
+    var cards = document.querySelectorAll('.status-card');
+    cards.forEach(function(card) {
+      card.addEventListener('mousemove', function(e) {
+        var rect = card.getBoundingClientRect();
+        var x = ((e.clientX - rect.left) / rect.width) * 100;
+        var y = ((e.clientY - rect.top) / rect.height) * 100;
+        card.style.setProperty('--mx', x + '%');
+        card.style.setProperty('--my', y + '%');
+      }, { passive: true });
+      card.addEventListener('mouseleave', function() {
+        card.style.removeProperty('--mx');
+        card.style.removeProperty('--my');
+      });
+    });
+  })();
+
+  // 粒子点击: 主按钮点击扩散效果（青色 + 绿色交替）
+  (function() {
+    var btns = document.querySelectorAll('.btn-primary, .btn-success');
+    btns.forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        var rect = btn.getBoundingClientRect();
+        var cx = e.clientX - rect.left;
+        var cy = e.clientY - rect.top;
+        for (var i = 0; i < 8; i++) {
+          var particle = document.createElement('span');
+          particle.className = 'particle';
+          var angle = (i / 8) * Math.PI * 2;
+          var dist = 20 + Math.random() * 20;
+          particle.style.setProperty('--px', Math.cos(angle) * dist + 'px');
+          particle.style.setProperty('--py', Math.sin(angle) * dist + 'px');
+          particle.style.left = cx + 'px';
+          particle.style.top = cy + 'px';
+          particle.style.background = i < 4 ? '#6c8cff' : '#4ade80';
+          btn.appendChild(particle);
+          setTimeout(function() { particle.remove(); }, 650);
+        }
+      });
+    });
+  })();
+
+  // 统计数字变化时闪烁
+  (function() {
+    // 猴子补丁：包裹 updateStats 添加数字闪动效果
+    var origUpdateStats = updateStats;
+    updateStats = function() {
+      var statEl = document.getElementById('stat-checks');
+      var prev = statEl.textContent;
+      origUpdateStats();
+      if (statEl.textContent !== prev) {
+        statEl.classList.remove('flash');
+        void statEl.offsetWidth;
+        statEl.classList.add('flash');
+      }
+    };
+  })();
+
+  // 键盘快捷键 Ctrl+1~7 切面板
+  document.addEventListener('keydown', function(e) {
+    if (!e.ctrlKey && !e.metaKey) return;
+    var panels = ['dashboard','capsule','envscan','secret','terminal','share','receipt'];
+    var idx = parseInt(e.key) - 1;
+    if (idx >= 0 && idx < panels.length) { e.preventDefault(); switchPanel(panels[idx]); }
+  });
+
+  // 初始化
+  selectFile('env');
+  updateFlowCurrent();
+  updateStats();
+  updateQuickStart();
+  updateHealthScore();
+  updatePreflight();
+  updateSubScores();
+  updateReadinessGate();
+  logEvent('工作台已加载');
+</script>
+</body>
+</html>
